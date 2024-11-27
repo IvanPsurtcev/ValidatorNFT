@@ -119,8 +119,14 @@ contract ValidatorTest is Test {
         assertEq(contractBalanceAfter - contractBalanceAfter2, 90 ether);
 
         validatorContract.lockLicense(3);
-        address[] memory validators = validatorContract.getValidatorsList();
+        address[] memory validators = validatorContract.getValidatorsList(0, 0);
         assertEq(validators.length, 1);
+
+        vm.expectRevert("Invalid indices");
+        validatorContract.getValidatorsList(1, 0);
+
+        vm.expectRevert("Index out of bounds");
+        validatorContract.getValidatorsList(0, 1);
 
         vm.stopPrank();
     }
@@ -144,6 +150,9 @@ contract ValidatorTest is Test {
         validatorContract.lockLicense(4);
         validatorContract.lockLicense(5);
         vm.stopPrank();
+
+        address[] memory validators = validatorContract.getValidatorsList(0, 2);
+        assertEq(validators.length, 3);
 
         vm.warp(block.timestamp + EPOCH_DURATION);
         validatorContract.epochEnd();

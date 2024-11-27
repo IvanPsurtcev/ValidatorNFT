@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./RewardToken.sol";
-import "forge-std/console.sol";
 
 contract ValidatorContract {
     IERC721 public licenseToken;
@@ -43,8 +42,18 @@ contract ValidatorContract {
         return (block.timestamp - startTimestamp) / epochDuration;
     }
 
-    function getValidatorsList() external view returns (address[] memory) {
-        return validatorsList;
+    function getValidatorsList(uint256 firstIndex, uint256 lastIndex) external view returns (address[] memory) {
+        require(firstIndex <= lastIndex, "Invalid indices");
+        require(lastIndex < validatorsList.length, "Index out of bounds");
+
+        uint256 length = lastIndex - firstIndex + 1;
+        address[] memory partialList = new address[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            partialList[i] = validatorsList[firstIndex + i];
+        }
+
+        return partialList;
     }
 
     function lockLicense(uint256 tokenId) external {
@@ -107,21 +116,17 @@ contract ValidatorContract {
     }
 
     function distributeRewards() private {
-        console.log("validatorsList.length", validatorsList.length);
         if (totalLockedLicenses > 0) {
-            for (uint256 i = 0; i < validatorsList.length; i++) {
+            for (uint256 i = 0; i < validatorsList.length;) {
                 address validator = validatorsList[i];
                 uint256 licenses = validators[validator].lockedLicenses.length;
-                console.log("validator", validator);
-                console.log("licenses", licenses);
 
                 if (licenses > 0) {
                     uint256 reward = currentRewardPerEpoch * licenses * 10**18 / totalLockedLicenses;
-                    console.log("reward", reward);
-                    console.log("currentRewardPerEpoch", currentRewardPerEpoch);
-                    console.log("licenses", licenses);
-                    console.log("totalLockedLicenses", totalLockedLicenses);
                     validators[validator].rewards += reward;
+                }
+                unchecked {
+                    i++;
                 }
             }
         }
@@ -129,9 +134,12 @@ contract ValidatorContract {
 
     function isLicenseLocked(address validator, uint256 tokenId) private view returns (bool) {
         uint256[] storage lockedLicenses = validators[validator].lockedLicenses;
-        for (uint256 i = 0; i < lockedLicenses.length; i++) {
+        for (uint256 i = 0; i < lockedLicenses.length;) {
             if (lockedLicenses[i] == tokenId) {
                 return true;
+            }
+            unchecked {
+                i++;
             }
         }
         return false;
@@ -140,11 +148,14 @@ contract ValidatorContract {
     function removeLockedLicense(Validator storage validator, uint256 tokenId) private {
         uint256[] storage lockedLicenses = validator.lockedLicenses;
         uint256 length = lockedLicenses.length;
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length;) {
             if (lockedLicenses[i] == tokenId) { 
                 lockedLicenses[i] = lockedLicenses[length - 1];
                 lockedLicenses.pop();
                 return;
+            }
+            unchecked {
+                i++;
             }
         }
     }
